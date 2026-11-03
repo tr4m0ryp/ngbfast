@@ -35,11 +35,11 @@ plt.rcParams.update({"font.size": 8, "axes.titlesize": 8, "axes.labelsize": 8,
                      "axes.edgecolor": MUTED, "axes.labelcolor": INK, "xtick.color": MUTED,
                      "ytick.color": MUTED, "font.family": "serif", "pdf.fonttype": 42,
                      "axes.spines.top": False, "axes.spines.right": False})
-W = 5.5  # NeurIPS text width, inches
+W = 4.1  # figure width in inches, placed at 0.75 of the NeurIPS text width
 
 
 def fig1(raw, out):
-    fig, ax = plt.subplots(figsize=(W, 2.6))
+    fig, ax = plt.subplots(figsize=(W, 2.15))
     y, ticks, labels = 0, [], []
     for a, alab in ARMS:
         for key, dlab in DS:
@@ -56,19 +56,20 @@ def fig1(raw, out):
         y -= 0.6
     ax.axvline(1, color=MUTED, lw=0.8, ls="--")
     ax.set_xscale("log")
+    ax.set_xlim(0.85, 4.8)
     ax.set_xticks([0.9, 1, 1.5, 2, 3, 4])
     ax.set_xticklabels(["0.9", "1", "1.5", "2", "3", "4"])
     ax.set_yticks(ticks)
     ax.set_yticklabels(labels)
-    ax.set_xlabel("one-row speedup of ours over the arm (x, log scale)")
+    ax.set_xlabel("one-row speedup of ours over the arm")
     ax.grid(axis="x", color="#e5e4df", lw=0.5)
     fig.tight_layout()
-    fig.savefig(out)
+    fig.savefig(out, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
 def fig2(src, out):
-    fig, ax = plt.subplots(figsize=(W, 2.5))
+    fig, ax = plt.subplots(figsize=(W, 2.15))
     for key, dlab in DS:
         g = json.load(open(src / f"{key}.json"))["grid"]
         for r in g:
@@ -87,13 +88,13 @@ def fig2(src, out):
     ax.annotate("upstream stopped\nafter 1 round", (0.35, 7.4), (0.12, 60), fontsize=6.5, color=INK,
                 arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.6))
     ax.axvline(1, color=MUTED, lw=0.8, ls="--")
-    ax.text(0.95, 2e4, "no split feasible", ha="right", va="center", color=INK, fontsize=7)
-    ax.text(1.05, 2e4, "splits feasible", ha="left", va="center", color=INK, fontsize=7)
+    ax.text(0.9, 6e4, "no split feasible", ha="right", va="center", color=INK, fontsize=7)
+    ax.text(1.1, 6e4, "splits feasible", ha="left", va="center", color=INK, fontsize=7)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_ylim(1, 4e4)
+    ax.set_ylim(1, 1.5e5)
     ax.set_xlabel(r"rows per round / $(2\,\times$ min_samples_leaf$)$ (log scale)")
-    ax.set_ylabel("one-row speedup vs upstream (x)")
+    ax.set_ylabel("speedup vs upstream (x)")
     h = [plt.Line2D([], [], ls="", marker=MRK[k], color=INK, mfc="none", label=k) for k, _ in DS]
     h.append(plt.Line2D([], [], ls="", marker=MRK["friedman1"], color=INK, mfc="none",
                         label="Friedman 1, low signal (tuned)"))
@@ -102,13 +103,13 @@ def fig2(src, out):
     ax.legend(handles=h, loc="center right", frameon=False, ncol=1, bbox_to_anchor=(1.0, 0.45))
     ax.grid(color="#e5e4df", lw=0.5)
     fig.tight_layout()
-    fig.savefig(out)
+    fig.savefig(out, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
 def fig3(raw, out):
     arms = ARMS[:3] + [("fold_direct", "ours (fold + direct)")]
-    fig, axes = plt.subplots(1, 3, figsize=(W, 1.9), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(5.5, 1.9), sharey=True)
     for ax, (key, dlab) in zip(axes, DS):
         for j, (a, alab) in enumerate(arms):
             t = 1e3 * np.concatenate([raw[key][f"tuned/seed{i}"]["1"][a] for i in range(3)])
@@ -123,7 +124,7 @@ def fig3(raw, out):
     axes[0].set_yticklabels([lab for _, lab in arms])
     axes[0].invert_yaxis()
     fig.tight_layout()
-    fig.savefig(out)
+    fig.savefig(out, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
 
 
