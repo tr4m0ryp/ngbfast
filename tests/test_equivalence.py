@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from helpers import assert_bitwise, const_tree, constant_flags, ngb, split_tree, toy
 from ngboost import NGBClassifier, NGBRegressor
-from ngboost.distns import Bernoulli, LogNormal, T, k_categorical
+from ngboost.distns import Bernoulli, LogNormal, TFixedDf, k_categorical
 from sklearn.tree import DecisionTreeRegressor
 
 import ngbfast
@@ -58,7 +58,7 @@ def test_merging_scalar_steps_would_break_exactness():
 @pytest.mark.parametrize(
     "make",
     [
-        lambda: NGBRegressor(Dist=T, n_estimators=40, verbose=False, random_state=1),
+        lambda: NGBRegressor(Dist=TFixedDf, n_estimators=40, verbose=False, random_state=1),
         lambda: NGBRegressor(Dist=LogNormal, n_estimators=40, verbose=False, random_state=1,
                              minibatch_frac=0.5, col_sample=0.5),
         lambda: NGBRegressor(n_estimators=40, verbose=False, random_state=1,
