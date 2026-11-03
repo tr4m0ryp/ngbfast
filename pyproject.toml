@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ngbfast"
 version = "0.1.0"
-description = "Bit-identical faster prediction for NGBoost: fold constant base learners, direct tree traversal, and a degeneracy diagnostic"
+description = "Bit-identical faster prediction for NGBoost: one input check per call with direct tree traversal, a warning when every tree is constant, and folding of constant learners"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-authors = [{ name = "Moussa Ouallaf" }]
+authors = [{ name = "Moussa Ouallaf", email = "moussa@husimi.ai" }]
 requires-python = ">=3.10"
 dependencies = [
     "ngboost>=0.5.11,<0.6",

@@ -1,6 +1,6 @@
 # Benchmark scope, cuts and results
 
-Run on a shared 8-core host (load average 7 to 21 during the runs) with `OMP_NUM_THREADS=1` and at
+Run on a shared 8-core host (load average 7 to 20 at the start and end of each run) with `OMP_NUM_THREADS=1` and at
 most 2 joblib workers. Measured wall time of the final runs: concrete 2,799 s, yacht 1,941 s,
 credit-g 711 s, small-n variant 135 s, low-signal variant 828 s, one-SE variant about 400 s:
 **6,814 s (1.9 h) in total**, inside the 2.5 h budget.
@@ -74,10 +74,11 @@ Fold only is 4 % slower than upstream at share 0 (its per-round bookkeeping, not
 The merged ablation is 3 to 5 % faster than ours at share 0, where it does exactly the same learner
 work: that gap is per-round overhead in ngbfast's prediction loop, not the price of exactness.
 
-**Fold build time is not negligible:** building the plan took a median of 17 % (concrete), 19 %
-(yacht) and 33 % (credit-g) of the fit time on these small data sets, against the plan's expected
-< 1 %. It probes each learner on a zero row plus a NaN and an infinity row (three `predict` calls), so
-it costs about three one-row upstream predictions; it pays for itself after about four one-row calls.
+**Fold build time is not negligible:** building the plan took a median of 16 % (concrete), 18 %
+(yacht) and 29 % (credit-g) of the fit time (tuned and default fits) on these small data sets, against
+the plan's expected < 1 %. It probes each learner on a zero row plus a NaN and an infinity row. On the
+tuned models it took as long as 6 to 16 one-row upstream predictions and pays for itself after 8 to 22
+one-row calls.
 
 ## Variants: what would have to be true for folding to matter (spec section 6)
 
@@ -100,7 +101,7 @@ best model could be (close to) a fixed distribution.
 3. **One-SE selection (Breiman et al. 1984: the most regularised trial within one SE of the best CV
    NLL).** credit-g n = 100: the rule picks leaf 400 (all learners constant). Held out, its NLL is
    +0.020 +- 0.014 nats above the best pick (n = 100 test rows, 3 seeds averaged): a tie within 1.4
-   SE, at 0.12 ms vs 0.47 ms one-row (ours on both; the best pick has only 3 rounds). Friedman a = 0
+   SE, at 0.12 ms vs 0.45 ms one-row (mean over seeds) (ours on both; the best pick has only 3 rounds). Friedman a = 0
    and a = 0.1: the rule picks leaf 400, also all constant, tie with the best pick (-0.00012 +- 0.00016
    and -0.00011 +- 0.00012 nats, n = 200). **Result: a tie on accuracy; kept as a documented option,
    not adopted as a win, because the accuracy difference is not resolved at this n.**

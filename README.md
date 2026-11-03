@@ -6,8 +6,10 @@
 </p>
 
 **ngbfast makes one-row NGBoost prediction 3.5x to 3.7x faster on tuned models with the exact same
-output bits (6,994 of 6,994 test rows, 90 fitted models), and 1,800x to 10,000x faster when a tuned
-model has silently stopped using its input, which it also warns you about.**
+output bits (6,994 of 6,994 test rows, 90 fitted models), by checking the input once per call instead
+of once per tree. It also warns you at fit time when every tree is constant, a model that ignores its
+input; only in that degenerate case does folding the constant trees make prediction 960x to 10,000x
+faster.**
 
 ```bash
 pip install git+https://github.com/tr4m0ryp/ngbfast
@@ -49,19 +51,20 @@ calls into scikit-learn.
 right number of columns, are there NaNs, cast it to float32. For one row this check costs more than
 walking the tree. ngbfast checks and casts the input once per call, then walks every tree directly.
 The walk is the same walk, on the same float32 values, so the answer is the same. This alone gives
-the 3.5x to 3.7x.
+the 3.5x to 3.7x on every tuned model we tested.
 
 **Constant trees.** Some trees never split: they have one node and return the same number for every
 input. That happens when each round's random subsample (the minibatch) is smaller than twice the
 minimum leaf size, so no split is allowed. ngbfast folds these trees: it subtracts their fixed
 values into a precomputed start value, in exactly the original order, and keeps any constant step
 that comes after the first real tree in its place, unmerged. Floating-point arithmetic is not
-associative, and merging would change the last bit.
+associative, and merging would change the last bit. On the tuned public models no tree was constant,
+so folding did nothing there.
 
 **When every tree is constant.** Then the model predicts one fixed distribution for every input,
 however much it was trained. A hyperparameter search can land there on data with little signal, and
-nothing in the fit complains. ngbfast turns prediction into one broadcast (1,800x to 10,000x faster)
-and, more usefully, raises a warning at fit time that names the bound that was violated.
+nothing in the fit complains. ngbfast turns prediction into one broadcast (960x to 10,000x faster on
+our grid) and, more usefully, raises a warning at fit time that names the bound that was violated.
 
 **The guarantee.** The paper proves that the folded path returns the same float64 bits as NGBoost's
 own loop on every row NGBoost accepts, and rejects exactly the rows NGBoost rejects. The benchmark
@@ -98,7 +101,11 @@ $`\otimes`$):
 \theta_k^{(i)} = \theta_k^{(i-1)} \ominus \big((\eta \otimes f_{ik}(x_{c_i})) \otimes \rho_i\big), \qquad \theta_k^{(0)} = \theta_{0,k}.
 ```
 
-**Folding.** A learner is constant when $`f_{ik}(x) = v_{ik}`$ for every accepted input (one-node
+**Direct traversal (the gain on typical models).** The input is validated and cast to float32 once
+per call; each tree that is still called is walked with scikit-learn's low-level `tree_.predict`, the
+same walk `predict` performs after its own check.
+
+**Folding (the gain only when learners are constant).** A learner is constant when $`f_{ik}(x) = v_{ik}`$ for every accepted input (one-node
 tree, all leaves equal, or a `DummyRegressor`). Its step is the scalar
 $`s_{ik} = (\eta \otimes v_{ik}) \otimes \rho_i`$. With $`i^*_k`$ the first round in which column
 $`k`$ has an input-dependent learner, the plan stores
@@ -109,11 +116,7 @@ $`k`$ has an input-dependent learner, the plan stores
 
 and, from round $`i^*_k`$ on, the ordered list of tree steps and scalar steps, never merged. The
 number of learner calls falls from $`MP`$ to the number of input-dependent learners $`N_s`$; with
-$`N_s = 0`$ prediction is one broadcast.
-
-**Direct traversal.** The input is validated and cast to float32 once per call; each remaining tree
-is walked with scikit-learn's low-level `tree_.predict`, the same walk `predict` performs after its
-own check.
+$`N_s = 0`$ prediction is one broadcast. With no constant learner nothing is removed.
 
 **Lemma 1 (bit-identical).** For every fitted model and every row upstream accepts, the folded path
 returns the same float64 bits as upstream after round $`M`$, and it rejects exactly the rows
@@ -160,10 +163,16 @@ Cells: speedup and paired log ratio ± SE. Below 1 the arm is faster.
   defaults), so the tuned-model gain is direct traversal. Folding on top is a tie.
 - **When every learner is constant, folding is the gain:** on the grid, 22 of 72 points were
   all-constant, exactly the points where Lemma 2's bound fails; there ours was 4,897x to 8,153x faster
-  on concrete, 4,742x to 10,069x on yacht and 964x to 1,842x on credit-g.
-- **The search picks an all-constant model only without usable signal:** on Friedman #1 with the
-  signal scaled to 0 and 0.1 of the noise, every learner was constant in 6 of 6 tuned fits, and one-row
-  prediction fell from 320 to 394 ms to 0.18 ms (1,808x to 2,215x, bit-identical).
+  on concrete, 4,742x to 10,069x on yacht and 964x to 1,842x on credit-g (7.0x to 7.8x on the 2 yacht
+  fits that upstream stopped after 1 round). These grid points fit worse, so the search never picked them.
+
+The arms, the grid and the tuned and default runs were planned before any run. The two results below
+come from follow-up settings added after the tuned models showed no constant learner (post hoc):
+
+- **In our runs the search picked an all-constant model only without usable signal:** on Friedman #1
+  with the signal scaled to 0 and 0.1 of the noise, every learner was constant in 6 of 6 tuned fits,
+  and one-row prediction fell from 320 to 394 ms to 0.18 ms (1,808x to 2,215x, bit-identical). Credit-g
+  cut to 100 training rows did not get there (0 % constant).
 - **One-SE model selection** (the simplest model within one SE of the best CV score) picked
   all-constant models at a held-out NLL tied with the best pick (credit-g n = 100: +0.020 ± 0.014 nats).
 
@@ -185,10 +194,12 @@ Cells: speedup and paired log ratio ± SE. Below 1 the arm is faster.
 - **Direct traversal is plain engineering** on scikit-learn's call path, not a new idea.
 - **Smaller run than planned:** 3 data sets, 3 seeds, 3-fold search, no compiled-tree speed reference
   (Treelite, Hummingbird).
-- **Plan build time:** 17 % (concrete), 19 % (yacht) and 33 % (credit-g) of fit time (median) on
-  these small sets; it pays for itself after about four one-row calls.
-- **Shared host** (load 7 to 21): interleaving protects the ratios, not the absolute milliseconds.
-  The 3-seed SE is smaller than the two-level block-bootstrap SE in the paper; both are reported there.
+- **Plan build time:** 16 % (concrete), 18 % (yacht) and 29 % (credit-g) of fit time (median over the
+  tuned and default fits) on these small sets; on the tuned models it pays for itself after 8 to 22
+  one-row calls.
+- **Shared host** (load 7 to 20): interleaving protects the ratios, not the absolute milliseconds.
+  The 3-seed SE differs from the two-level block-bootstrap SE in the paper either way (concrete 0.005
+  vs 0.013, yacht 0.017 vs 0.015); both are reported there.
 - **Linear learners with zero coefficients** fold exactly only for finite inputs; opt-in, not benchmarked.
 
 ## Use
@@ -238,7 +249,7 @@ The full benchmark took 1.9 h on a shared 8-core host with `OMP_NUM_THREADS=1`.
 
 ```bibtex
 @misc{ouallaf2026ngbfast,
-  title  = {Folding constant learners in {NGBoost}: bit-identical predictions, faster inference},
+  title  = {Bit-identical, faster {NGBoost} prediction, and a warning when every tree is constant},
   author = {Ouallaf, Moussa},
   year   = {2026},
   howpublished = {\url{https://github.com/tr4m0ryp/ngbfast}},
@@ -251,4 +262,5 @@ The full benchmark took 1.9 h on a shared 8-core host with `OMP_NUM_THREADS=1`.
 Apache License 2.0. ngbfast extends [NGBoost](https://github.com/stanfordmlgroup/ngboost)
 (Apache-2.0, Stanford ML Group): `ngbfast/reference.py` reproduces NGBoost's prediction loop and
 `patches/` modifies NGBoost's source, so the package keeps the upstream license. See
-[LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright 2026 Moussa Ouallaf.
+[LICENSE](LICENSE) and [NOTICE](NOTICE). Copyright 2026 Moussa Ouallaf, Husimi.ai
+(moussa@husimi.ai).
