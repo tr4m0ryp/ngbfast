@@ -34,7 +34,9 @@ def _curve(kind, cfg, seed, X, y, tr, va):
     ngbfast.fold(model)
     stages = ngbfast.staged_pred_param(model, X[va])
     curve = np.array([nll(kind, p, y[va]).mean() for p in stages])
-    return np.where(np.isfinite(curve), curve, np.inf)
+    curve = np.where(np.isfinite(curve), curve, np.inf)
+    # upstream stops early when the projected gradient vanishes; later rounds would predict the same
+    return np.concatenate([curve, np.full(cfg["n_estimators"] - curve.size, curve[-1])])
 
 
 def random_search(task, n_trials=50, n_folds=3, seed=0, n_jobs=2):

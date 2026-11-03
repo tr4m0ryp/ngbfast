@@ -26,7 +26,14 @@ def _exact(fits):
     return out
 
 
+def _by_label(fit):
+    """Latency keyed by "1", "100" and "full" (the full test set differs in size between splits)."""
+    lat = fit["latency"]
+    return {(k if k in ("1", "100") else "full"): v for k, v in lat.items()}
+
+
 def _paired(fits):
+    fits = [{**f, "latency": _by_label(f)} for f in fits]
     out = {}
     for batch in fits[0]["latency"]:
         out[batch] = {}
@@ -47,9 +54,8 @@ def _grid(rows):
         lat = g["latency"]["1"]
         out.append({**{k: g["config"][k] for k in ("min_samples_leaf", "minibatch_frac", "max_depth")},
                     "constant_share": g["constant_share"], "per_param": g["constant_per_param"],
-                    "speedup_fold": lat["paired"]["fold"]["speedup_median"] if "fold" in lat["paired"] else None,
-                    "fold_vs_pristine": float(np.exp(lat["paired"]["pristine"]["median_log_diff"]
-                                                     - lat["paired"]["fold"]["median_log_diff"])),
+                    "fold_vs_pristine": float(np.exp(lat["paired"]["fold"]["median_log_diff"]
+                                                     - lat["paired"]["pristine"]["median_log_diff"])),
                     "ours_vs_pristine": lat["paired"]["pristine"]["speedup_median"],
                     "ours_vs_pristine_se_log": lat["paired"]["pristine"]["se"],
                     "test_nll": g["test_nll"]})
