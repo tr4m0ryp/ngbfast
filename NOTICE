@@ -7,3 +7,5 @@ Copyright the Stanford ML Group, licensed under the Apache License, Version 2.0.
 The reference prediction loop in ngbfast/reference.py reproduces NGBoost's
 NGBoost.pred_param and NGBoost.staged_pred_dist (v0.5.11) so that the folded
 path can be checked against it bit for bit.
+patches/ngboost-check-input-once.patch modifies NGBoost's ngboost/ngboost.py at
+upstream master commit 662aae3 and adds tests/test_prediction_plan.py.

@@ -217,8 +217,17 @@ ngbfast.patch()                           # opt-in: every NGBoost fit folds and 
 from ngbfast import FastNGBRegressor      # or FastNGBClassifier, FastNGBSurvival
 ```
 
-`patches/ngboost-fold-constant-trees.patch` is an upstream-ready patch for ngboost 0.5.11 that folds
-at fit end; rounds stay stored, so staged prediction and `partial_fit` are unchanged.
+`patches/ngboost-check-input-once.patch` is an upstream-ready patch against ngboost master (commit
+`662aae3`). `pred_param` checks the input once and calls the trees with `check_input=False`, folds
+constant trees, and `fit` warns when every tree is constant; rounds stay stored, so staged prediction
+and `partial_fit` are unchanged. Measured on one shared 8-core machine
+(`patches/ngboost-check-input-once.timings.json`), it makes `pred_param` 2.1x to 2.7x faster on
+default models and about 400x faster when every tree is constant, with bit-identical outputs. These
+are the patch's numbers; the 3.5x to 3.7x above is ngbfast's own, measured against ngboost 0.5.11.
+An earlier patch for ngboost 0.5.11 added one input check but still called every tree with its own
+check, and did not speed up normal models (0.98x to 1.05x); it is replaced.
+`tests/test_upstream_patch.py` applies the patch to that master commit and checks the bits; it skips
+unless `NGBFAST_NGBOOST_SRC` points to an ngboost git clone holding `662aae3`.
 `examples/quickstart.py` runs both regimes on synthetic data.
 
 ## Reproduce

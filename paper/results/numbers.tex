@@ -604,8 +604,16 @@
 % small_n_credit-g.json sizes key (training rows)
 \newcommand{\nSmallTrainRows}{100}
 % git rev-parse --short HEAD of the ngbfast repository
-\newcommand{\nCommit}{7977c37}
-% wc -l patches/ngboost-fold-constant-trees.patch
-\newcommand{\nPatchLines}{393}
+\newcommand{\nCommit}{570edcf}
+% wc -l patches/ngboost-check-input-once.patch
+\newcommand{\nPatchLines}{453}
+% ngboost-check-input-once.timings.json base_commit (ngboost master)
+\newcommand{\nPatchBase}{662aae3}
+% timings.json min speedup over default-learner rows
+\newcommand{\nPatchSpeedLo}{2.1}
+% timings.json max speedup over default-learner rows
+\newcommand{\nPatchSpeedHi}{2.7}
+% timings.json speedup, all trees constant
+\newcommand{\nPatchSpeedConst}{400}
 % raw latency dir used: True
 \newcommand{\nRawBoot}{yes}

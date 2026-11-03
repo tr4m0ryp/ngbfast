@@ -181,5 +181,12 @@ def provenance(m, src):
     sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],
                          capture_output=True, text=True).stdout.strip()
     m.add("nCommit", sha, "git rev-parse --short HEAD of the ngbfast repository")
-    patch = repo / "patches" / "ngboost-fold-constant-trees.patch"
-    m.add("nPatchLines", fint(len(patch.read_text().splitlines())), "wc -l patches/ngboost-fold-constant-trees.patch")
+    patch = repo / "patches" / "ngboost-check-input-once.patch"
+    m.add("nPatchLines", fint(len(patch.read_text().splitlines())), "wc -l patches/ngboost-check-input-once.patch")
+    t = json.load(open(repo / "patches" / "ngboost-check-input-once.timings.json"))
+    m.add("nPatchBase", t["base_commit"], "ngboost-check-input-once.timings.json base_commit (ngboost master)")
+    dflt = [r["speedup"] for r in t["rows"] if r["default"]]
+    m.add("nPatchSpeedLo", f"{min(dflt):.1f}", "timings.json min speedup over default-learner rows")
+    m.add("nPatchSpeedHi", f"{max(dflt):.1f}", "timings.json max speedup over default-learner rows")
+    const = [r["speedup"] for r in t["rows"] if not r["default"]]
+    m.add("nPatchSpeedConst", fint(round(const[0])), "timings.json speedup, all trees constant")

@@ -1,0 +1,13 @@
+{
+  "base_commit": "662aae3",
+  "upstream_commit": "154e980",
+  "host": "one shared 8-core machine; Python 3.12, scikit-learn 1.6.1, numpy 2.5",
+  "measure": "median pred_param time, before and after the patch; every output bit-identical",
+  "rows": [
+    {"model": "NGBRegressor() default, California housing", "rows": 1, "before_ms": 201, "after_ms": 91, "speedup": 2.2, "default": true},
+    {"model": "NGBRegressor() default, California housing", "rows": 20640, "before_ms": 898, "after_ms": 418, "speedup": 2.1, "default": true},
+    {"model": "NGBRegressor(col_sample=0.5, minibatch_frac=0.5)", "rows": 1, "before_ms": 202, "after_ms": 96, "speedup": 2.1, "default": true},
+    {"model": "NGBClassifier() default, breast cancer", "rows": 569, "before_ms": 137, "after_ms": 52, "speedup": 2.7, "default": true},
+    {"model": "all trees constant (min_samples_leaf=100, minibatch_frac=0.2, n=400)", "rows": 1, "before_ms": 200, "after_ms": 0.5, "speedup": 400, "default": false}
+  ]
+}
