@@ -101,7 +101,10 @@ def per_dataset(m, key, S, D, tag, raw_dir):
           f"{src} tuned_paired.1: t_fold/t_pristine = exp(d_pristine - d_fold), percent slower")
     m.add(f"n{tag}PlanOverFit", f(100 * float(np.median(s["plan_over_fit"])), 0),
           f"{src} plan_over_fit, median over tuned + default fits, percent of fit time")
-    return ex["fold_direct"]["n_rows"], ex["fold_direct"]["n_models"]
+    p50 = tp["1"]["p50_ms"]
+    saved = p50["pristine"] - p50["fold_direct"]
+    pay = [1000 * t["plan_build_s"] / saved for t in D["tuned"]]
+    return ex["fold_direct"]["n_rows"], ex["fold_direct"]["n_models"], pay
 
 
 def main():
@@ -115,12 +118,16 @@ def main():
     S = load(src / "summary.json")
     m = Macros()
     rows = models = 0
+    pay = []
     for key, tag in DS.items():
-        r, n = per_dataset(m, key, S, load(src / f"{key}.json"), tag, raw)
-        rows, models = rows + r, models + n
+        r, n, p = per_dataset(m, key, S, load(src / f"{key}.json"), tag, raw)
+        rows, models, pay = rows + r, models + n, pay + p
     m.section("totals over the three data sets")
     m.add("nEqRowsTotal", fint(rows), "sum of exact_all_models.fold_direct.n_rows")
     m.add("nEqModelsTotal", fint(models), "sum of exact_all_models.fold_direct.n_models")
+    pc = "tuned[*].plan_build_s / (p50 pristine - p50 ours, one row): one-row calls to repay the plan"
+    m.add("nPayMin", fint(round(min(pay))), f"{pc}, min over tuned fits")
+    m.add("nPayMax", fint(round(max(pay))), f"{pc}, max over tuned fits")
     grid_and_variants(m, S, src)
     setup(m, Path(args.src))
     provenance(m, Path(args.src))

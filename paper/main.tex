@@ -29,10 +29,12 @@
 \newcommand{\fsub}{\ominus}
 \newcommand{\fmul}{\otimes}
 
-\title{Folding constant learners in NGBoost: bit-identical predictions, faster inference}
+\title{Bit-identical, faster NGBoost prediction, and a warning when every tree is constant}
 
 \author{%
   Moussa Ouallaf \\
+  Husimi.ai \\
+  \texttt{moussa@husimi.ai} \\
 }
 
 \begin{document}
@@ -40,12 +42,12 @@
 \maketitle
 
 \begin{abstract}
-NGBoost, boosting that predicts a full probability distribution, calls every stored tree on every prediction, even a tree that returns the same value for every input.
-We fold such constant trees into a precomputed start value in the original floating-point order, and walk the other trees after one input check per call instead of one per tree.
+NGBoost, boosting that predicts a full probability distribution, makes one scikit-learn \texttt{predict} call per stored tree, and every call checks the input again.
+We check and cast the input once per call and then walk every tree directly, which returns the same bits.
 Against pristine ngboost \nVerNgboost{} on three public data sets (\nConcreteSeeds{} seeded splits each), one-row prediction on tuned models was \nConcreteOnePristineX$\times$ faster on concrete (paired log ratio \nConcreteOnePristineLog{} $\pm$ \nConcreteOnePristineSE{} SE over seeds), \nYachtOnePristineX$\times$ on yacht and \nCreditGOnePristineX$\times$ on credit-g, with bit-identical outputs on all \nEqRowsTotal{} test rows of \nEqModelsTotal{} fitted models.
-The tuned models held no constant tree, so this gain is the single input check alone (folding on top: a tie, \nConcreteOneDirectLog{} $\pm$ \nConcreteOneDirectSE).
-Folding paid off when every tree was constant, which in our runs happened only on synthetic data without signal: \nLowMinX$\times$ to \nLowMaxX$\times$ faster.
-We prove when a model must be all-constant and turn that bound into a fit-time warning.
+We also fold trees that return the same value for every input into a precomputed start value, in the original floating-point order. The tuned models held no such tree, so folding added nothing there (a tie, \nConcreteOneDirectLog{} $\pm$ \nConcreteOneDirectSE).
+Folding only matters in a degenerate case: when every tree is constant, the model predicts one fixed distribution and prediction becomes one broadcast, \nCreditGGridDegMinX$\times$ to \nYachtGridDegMaxX$\times$ faster on our grid. A tuning search picked such a model in our runs only on synthetic data without signal (\nLowMinX$\times$ to \nLowMaxX$\times$).
+We prove when a model must be all-constant and turn that bound into a fit-time warning, which we think is the more useful part.
 \end{abstract}
 
 \section{Problem}
@@ -73,7 +75,7 @@ The upstream library \citep{ngboost_software} evaluates Equation~\eqref{eq:pred}
 Each call re-validates the input (array checks, a float32 cast, a feature count).
 For a single row this validation costs more than walking the tree, and we measure it as the main cost in Section~\ref{sec:results}.
 
-The loop also pays for trees that do nothing, and this is the case we set out to remove.
+The loop also pays for trees that do nothing, and this is the case we set out to remove; on the tuned public models it did not occur (Section~\ref{sec:results}).
 A tree with one node, a root-only tree, returns the same value for every input, but it still costs a full \texttt{predict} call.
 This happens when each round's minibatch is smaller than twice the minimum leaf size, and a tuning search can land there without any error.
 The model then predicts one fixed distribution for every input, yet one prediction still runs $M P$ calls.
@@ -82,6 +84,8 @@ The model then predicts one fixed distribution for every input, yet one predicti
 \label{sec:change}
 
 We change how Equation~\eqref{eq:pred} is evaluated, not what it computes. Write $a \fsub b$ and $a \fmul b$ for float64 subtraction and multiplication with IEEE rounding \citep{goldberg1991floating}.
+
+\textbf{Direct traversal.} We validate the input and cast it to float32 once per call, and then walk each tree that is still called with scikit-learn's low-level \texttt{tree\_.predict} with input checks off. Upstream \texttt{predict} performs the same cast and the same walk, so the values are equal. On typical models this is the whole speedup.
 Upstream runs, for each column $k$ and round $i$ in order,
 \begin{equation}
 \theta_k^{(i)} = \theta_k^{(i-1)} \fsub \big((\eta \fmul f_{ik}(x_{c_i})) \fmul \rho_i\big), \qquad \theta_k^{(0)} = \theta_{0,k}.
@@ -95,9 +99,7 @@ Upstream runs, for each column $k$ and round $i$ in order,
 \end{equation}
 and, from round $i^*_k$ on, an ordered list of tree steps (Equation~\eqref{eq:loop}) and scalar steps $\theta_k \leftarrow \theta_k \fsub s_{ik}$.
 We never merge scalar steps after the first split, because merging would reorder floating-point subtractions and change the last bit.
-Prediction broadcasts $\text{start}$ to all rows and walks the list, so the number of learner calls falls from $MP$ to the number of input-dependent learners $N_s$; with $N_s = 0$ prediction is one broadcast.
-
-\textbf{Direct traversal.} We validate the input and cast it to float32 once per call, and then walk each remaining tree with scikit-learn's low-level \texttt{tree\_.predict} with input checks off. Upstream \texttt{predict} performs the same cast and the same walk, so the values are equal.
+Prediction broadcasts $\text{start}$ to all rows and walks the list, so the number of learner calls falls from $MP$ to the number of input-dependent learners $N_s$; with $N_s = 0$ prediction is one broadcast. With no constant learner, $N_s = MP$ and folding removes nothing.
 
 \begin{lemma}[Folding is bit-identical]
 \label{lem:fold}
@@ -160,7 +162,7 @@ bitwise rows (models) & \nConcreteEqRows{} (\nConcreteEqModels) & \nYachtEqRows{
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:paired} adds the per-seed medians. The gain over upstream holds at larger batches: \nConcreteHundredPristineX$\times$ on concrete and \nCreditGHundredPristineX$\times$ on credit-g at \nHundredRows{} rows, \nYachtFullPristineX$\times$ on yacht's \nYachtFullRows-row test set. Fold only is \nConcreteFoldSlowerPct\% (concrete) and \nYachtFoldSlowerPct\% (yacht) slower than upstream, the cost of its per-round bookkeeping with no learner removed. The merged ablation is faster than ours by the same margin (ours runs at \nCreditGOneMergedX{} to \nConcreteOneMergedX{} of its speed): it does the same learner work, so the gap is loop overhead in our code, not the price of exactness.
+Figure~\ref{fig:paired} adds the per-seed medians. The gain over upstream holds at larger batches: \nConcreteHundredPristineX$\times$ on concrete and \nCreditGHundredPristineX$\times$ on credit-g at \nHundredRows{} rows, \nYachtFullPristineX$\times$ on yacht's \nYachtFullRows-row test set. Fold only is \nConcreteFoldSlowerPct\% (concrete) and \nYachtFoldSlowerPct\% (yacht) slower than upstream, the cost of its per-round bookkeeping with no learner removed. The merged ablation is faster than ours by a similar margin (ours runs at \nCreditGOneMergedX{} to \nConcreteOneMergedX{} of its speed): it does the same learner work, so the gap is loop overhead in our code, not the price of exactness.
 
 \begin{figure}[!tbp]
 \centering
@@ -174,7 +176,7 @@ Figure~\ref{fig:paired} adds the per-seed medians. The gain over upstream holds 
 \begin{figure}[!tbp]
 \centering
 \includegraphics[width=0.56\linewidth]{figures/fig2_bound.pdf}
-\caption{The split bound separates the two regimes: left of the line every learner is constant and ours gains \nCreditGGridDegMinX$\times$ to \nYachtGridDegMaxX$\times$; right of it no learner is constant and only direct traversal helps. One point per grid fit (one seed) and per low-signal fit.}
+\caption{The split bound separates the two regimes: left of the line every learner is constant and ours gains \nCreditGGridDegMinX$\times$ to \nYachtGridDegMaxX$\times$ (\nYachtGridOneRoundMinX$\times$ to \nYachtGridOneRoundMaxX$\times$ on the \nYachtGridOneRoundN{} yacht fits that upstream stopped after one round); right of it no learner is constant and only direct traversal helps. One point per grid fit (one seed) and per low-signal fit.}
 \label{fig:bound}
 \end{figure}
 
@@ -183,9 +185,9 @@ Figure~\ref{fig:paired} adds the per-seed medians. The gain over upstream holds 
 \section{Limits}
 \label{sec:limits}
 
-Folding gave no speedup on any tuned public model, and we tested only three data sets, so we do not claim how often real tuned models are all-constant (Appendix~\ref{app:external} reports one case outside the benchmark). The gain there is direct traversal, which is plain engineering on scikit-learn's call path. The large folding gains need a model with no usable signal, and such a model is better reported to the user than served faster, so we think the warning from Lemma~\ref{lem:bound} is the more useful part.
+Folding gave no speedup on any tuned public model, and we tested only three data sets, so we do not claim how often real tuned models are all-constant. Appendix~\ref{app:external} reports one case outside the benchmark; its large gain came from every learner being constant, the degenerate case of Lemma~\ref{lem:bound}, not from folding a typical model. The gain on typical models is direct traversal, which is plain engineering on scikit-learn's call path. The large folding gains need a model with no usable signal, and such a model is better reported to the user than served faster, so we think the warning from Lemma~\ref{lem:bound} is the more useful part.
 
-The run is smaller than we planned: \nDataSets{} data sets instead of the UCI suite, \nConcreteSeeds{} seeds, a \nCVFolds-fold search, and no external speed reference such as compiled tree libraries \citep{cho2018treelite,nakandala2020hummingbird}. Building the plan takes \nConcretePlanOverFit\%, \nYachtPlanOverFit\% and \nCreditGPlanOverFit\% of fit time on concrete, yacht and credit-g (median). The host was shared (load average \nLoadMin{} to \nLoadMax), and interleaving protects the ratios, not the absolute milliseconds. The benchmark SE rests on \nConcreteSeeds{} seeds and is smaller than the two-level SE (concrete \nConcreteOnePristineSE{} against \nConcreteOnePristineBootSE); we report both. Folding linear learners with zero coefficients is exact only for finite inputs; it is opt-in and we did not benchmark it.
+The run is smaller than we planned: \nDataSets{} data sets instead of the UCI suite, \nConcreteSeeds{} seeds, a \nCVFolds-fold search, and no external speed reference such as compiled tree libraries \citep{cho2018treelite,nakandala2020hummingbird}. Building the plan takes \nConcretePlanOverFit\%, \nYachtPlanOverFit\% and \nCreditGPlanOverFit\% of fit time on concrete, yacht and credit-g (median over the tuned and default fits); on the tuned models it pays for itself after \nPayMin{} to \nPayMax{} one-row calls. The host was shared (load average \nLoadMin{} to \nLoadMax), and interleaving protects the ratios, not the absolute milliseconds. The benchmark SE rests on \nConcreteSeeds{} seeds and can differ from the two-level SE either way (concrete \nConcreteOnePristineSE{} against \nConcreteOnePristineBootSE, yacht \nYachtOnePristineSE{} against \nYachtOnePristineBootSE); we report both. Folding zero-coefficient linear learners is exact only for finite inputs; it is opt-in and not benchmarked.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
@@ -259,7 +261,7 @@ So if $m < \max(\text{min\_samples\_split}, 2L)$ the root cannot split and $f_{i
 
 \begin{table}[H]
 \centering
-\caption{Folding pays off only when every learner is constant; then one-row prediction is three to four orders of magnitude faster, with bit-identical outputs. Speedup is ours over upstream ngboost \nVerNgboost{} for one row (range over fits).}
+\caption{Folding pays off only when every learner is constant; then one-row prediction is about 1{,}000$\times$ to 10{,}000$\times$ faster, with bit-identical outputs. Speedup is ours over upstream ngboost \nVerNgboost{} for one row (range over fits).}
 \label{tab:fold}
 \footnotesize
 \begin{tabular}{@{}lccc@{}}
@@ -267,10 +269,11 @@ So if $m < \max(\text{min\_samples\_split}, 2L)$ the root cannot split and $f_{i
 Fits & all-constant fits & one-row speedup & one-row ms, upstream / ours\\
 \midrule
 grid, concrete & \nConcreteGridDegenerate{} of \nConcreteGridPoints & \nConcreteGridDegMinX$\times$ to \nConcreteGridDegMaxX$\times$ & not recorded\\
-grid, yacht & \nYachtGridDegenerate{} of \nYachtGridPoints & \nYachtGridDegMinX$\times$ to \nYachtGridDegMaxX$\times$ & not recorded\\
+grid, yacht & \nYachtGridDegenerate{} of \nYachtGridPoints & \nYachtGridDegMinX$\times$ to \nYachtGridDegMaxX$\times$$^{a}$ & not recorded\\
 grid, credit-g & \nCreditGGridDegenerate{} of \nCreditGGridPoints & \nCreditGGridDegMinX$\times$ to \nCreditGGridDegMaxX$\times$ & not recorded\\
 tuned, Friedman without signal & \nLowFits{} of \nLowFits & \nLowMinX$\times$ to \nLowMaxX$\times$ & \nLowPristineMinMs--\nLowPristineMaxMs{} / \nLowOursMs\\
 \midrule
+\multicolumn{4}{@{}l}{$^{a}$ The \nYachtGridOneRoundN{} fits that upstream stopped after one round gained \nYachtGridOneRoundMinX$\times$ to \nYachtGridOneRoundMaxX$\times$.}\\
 \multicolumn{4}{@{}l}{Bitwise equality of fold only, direct traversal only and ours: all \nEqRowsTotal{} test rows of \nEqModelsTotal{} fitted models.}\\
 \bottomrule
 \end{tabular}

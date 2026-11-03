@@ -391,6 +391,10 @@
 \newcommand{\nEqRowsTotal}{6{,}994}
 % sum of exact_all_models.fold_direct.n_models
 \newcommand{\nEqModelsTotal}{90}
+% tuned[*].plan_build_s / (p50 pristine - p50 ours, one row): one-row calls to repay the plan, min over tuned fits
+\newcommand{\nPayMin}{8}
+% tuned[*].plan_build_s / (p50 pristine - p50 ours, one row): one-row calls to repay the plan, max over tuned fits
+\newcommand{\nPayMax}{22}
 
 % ---- grid (1 seed, split 0): where constant learners appear
 % summary.json [concrete] grid: number of grid points
@@ -600,7 +604,7 @@
 % small_n_credit-g.json sizes key (training rows)
 \newcommand{\nSmallTrainRows}{100}
 % git rev-parse --short HEAD of the ngbfast repository
-\newcommand{\nCommit}{d8dda3e}
+\newcommand{\nCommit}{6bf8abe}
 % wc -l patches/ngboost-fold-constant-trees.patch
 \newcommand{\nPatchLines}{393}
 % raw latency dir used: True
