@@ -1,0 +1,8 @@
+ngbfast
+Copyright 2026 Moussa Ouallaf
+
+This package extends NGBoost (https://github.com/stanfordmlgroup/ngboost),
+Copyright the Stanford ML Group, licensed under the Apache License, Version 2.0.
+The reference prediction loop in ngbfast/reference.py reproduces NGBoost's
+NGBoost.pred_param and NGBoost.staged_pred_dist (v0.5.11) so that the folded
+path can be checked against it bit for bit.
