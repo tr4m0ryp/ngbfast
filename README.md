@@ -169,7 +169,7 @@ Cells: speedup and paired log ratio ± SE. Below 1 the arm is faster.
 The arms, the grid and the tuned and default runs were planned before any run. The two results below
 come from follow-up settings added after the tuned models showed no constant learner (post hoc):
 
-- **In our runs the search picked an all-constant model only without usable signal:** on Friedman #1
+- **In our runs the best-score search picked an all-constant model only without usable signal:** on Friedman #1
   with the signal scaled to 0 and 0.1 of the noise, every learner was constant in 6 of 6 tuned fits,
   and one-row prediction fell from 320 to 394 ms to 0.18 ms (1,808x to 2,215x, bit-identical). Credit-g
   cut to 100 training rows did not get there (0 % constant).

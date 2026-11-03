@@ -67,17 +67,19 @@ mean over 3 seeds of the median paired log ratio (SE):
 | yacht | 3.60x (-1.280 +- 0.017) | 3.78x (-1.330 +- 0.009) | 1.01x (-0.005 +- 0.004) | 0.96x (+0.039 +- 0.002) |
 | credit-g | 3.51x (-1.254 +- 0.004) | 3.52x (-1.259 +- 0.010) | 1.00x (+0.000 +- 0.002) | 0.95x (+0.052 +- 0.003) |
 
-At 100 rows and at the full test set the ratio vs upstream is the same within 2 SE (concrete 3.94x
-and 3.81x, yacht 3.86x at 30 rows, credit-g 3.57x at 100 rows). **Ours vs direct only is a tie** on
-every dataset (|log ratio| <= 1.5 SE): with no constant learner, folding has nothing to remove.
-Fold only is 4 % slower than upstream at share 0 (its per-round bookkeeping, not removed work).
+At 100 rows and at the full test set the ratio vs upstream stays in the same range and is slightly
+larger (concrete 3.94x and 3.81x, yacht 3.86x at 30 rows, credit-g 3.57x at 100 rows; concrete at 100
+rows and yacht at 30 rows are above the one-row ratio by more than 2 SE). **Ours vs direct only is a tie** on
+every dataset (|log ratio| <= 1.6 benchmark SE, inside the two-level bootstrap SE): with no constant learner, folding has nothing to remove.
+Fold only is 4 % (concrete) and 5 % (yacht) slower than upstream at share 0 and ties it on credit-g
+(its per-round bookkeeping, not removed work).
 The merged ablation is 3 to 5 % faster than ours at share 0, where it does exactly the same learner
 work: that gap is per-round overhead in ngbfast's prediction loop, not the price of exactness.
 
 **Fold build time is not negligible:** building the plan took a median of 16 % (concrete), 18 %
 (yacht) and 29 % (credit-g) of the fit time (tuned and default fits) on these small data sets, against
 the plan's expected < 1 %. It probes each learner on a zero row plus a NaN and an infinity row. On the
-tuned models it took as long as 6 to 16 one-row upstream predictions and pays for itself after 8 to 22
+tuned models it took as long as 6 to 17 one-row upstream predictions and pays for itself after 8 to 22
 one-row calls.
 
 ## Variants: what would have to be true for folding to matter (spec section 6)
@@ -96,8 +98,8 @@ best model could be (close to) a fixed distribution.
    prediction: upstream 320 to 394 ms p50 vs ours 0.18 ms; ours vs upstream 1,808x to 2,215x per seed
    (block-bootstrap SE of the log ratio 0.02 to 0.07, 60 repetitions each). Fold alone was faster
    still (0.16 ms), as the float32 input check of direct traversal is pure overhead here.
-   **Result: when there is no usable signal, tuning lands on a fully constant model, and folding
-   wins by three orders of magnitude, bit-identically.**
+   **Result: in our runs, with no usable signal the best-score search landed on a fully constant
+   model, and ours beat upstream by three orders of magnitude, bit-identically.**
 3. **One-SE selection (Breiman et al. 1984: the most regularised trial within one SE of the best CV
    NLL).** credit-g n = 100: the rule picks leaf 400 (all learners constant). Held out, its NLL is
    +0.020 +- 0.014 nats above the best pick (n = 100 test rows, 3 seeds averaged): a tie within 1.4
@@ -113,10 +115,10 @@ best model could be (close to) a fixed distribution.
   the one-row gain (ours vs upstream, 15 repetitions, grid) is 4,742x to 10,069x on concrete and
   yacht, 964x to 1,842x on credit-g, 1,808x to 2,215x in the low-signal variant, and 7x to 8x on two
   yacht fits that upstream stopped after 1 round (the gain scales with the rounds removed). At 0
-  folding gives 1.00x to 1.01x (a tie with direct traversal). Tuned models on the three public sets sit at 0; only no-signal or very small data puts
-  the search at 1.
+  folding gives 1.00x to 1.01x (a tie with direct traversal). Tuned models on the three public sets sit at 0; in our runs only data without usable signal put
+  the best-score search at 1 (credit-g cut to 100 rows did not; the one-SE rule did).
 - **Direct traversal (c): the dependable gain**, 3.5x to 3.7x one-row on every tuned model, SE of the
   log ratio <= 0.017.
-- As the spec's fallback says, the publishable part is the upstream patch plus the degeneracy
-  diagnostic (it flags exactly the grid points where the bound fails), not a folding speedup on
-  tuned models.
+- The publishable part is the bit-identical direct-traversal speedup, the upstream patch and the
+  degeneracy diagnostic (it flags exactly the grid points where the bound fails), not a folding
+  speedup on tuned models.
