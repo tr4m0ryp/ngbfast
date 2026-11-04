@@ -35,11 +35,13 @@
   Moussa Ouallaf \\
   Husimi.ai \\
   \texttt{moussa@husimi.ai} \\
+  \textit{Technical note (preprint, not peer-reviewed)}
 }
 
 \begin{document}
 
 \maketitle
+\vspace{-1.6em}
 
 \begin{abstract}
 NGBoost, boosting that predicts a full probability distribution, makes one scikit-learn \texttt{predict} call per stored tree, and every call checks the input again.
@@ -189,6 +191,11 @@ Folding gave no speedup on any tuned public model, and we tested only three data
 
 The run is smaller than planned: \nDataSets{} data sets, not the UCI suite, \nConcreteSeeds{} seeds, a \nCVFolds-fold search, no external speed reference like compiled tree libraries \citep{cho2018treelite,nakandala2020hummingbird}. Building the plan takes \nConcretePlanOverFit\%, \nYachtPlanOverFit\% and \nCreditGPlanOverFit\% of fit time on concrete, yacht and credit-g (median, tuned and default fits), repaid after \nPayMin{} to \nPayMax{} one-row calls on tuned models. On the shared host (load \nLoadMin{} to \nLoadMax) interleaving protects the ratios, not the milliseconds. The benchmark SE rests on \nConcreteSeeds{} seeds and can differ from the two-level SE either way (concrete \nConcreteOnePristineSE{} against \nConcreteOnePristineBootSE, yacht \nYachtOnePristineSE{} against \nYachtOnePristineBootSE); we report both. Folding zero-coefficient linear learners is exact only for finite inputs (opt-in, not benchmarked).
 
+\section*{Generative AI acknowledgement}
+Generative AI is becoming part of how research is designed, carried out and written up. Readers should know where it was used, so we state it plainly. Generative AI was used throughout this project: to write and review code, to run and check the experiments, and to draft and revise this note. We used only Anthropic's Claude models. Every result reported here comes from code in the accompanying repository and can be reproduced from it.
+
+Statements like this one are still free text, and no two papers word them alike. We are developing a general checklist for reporting generative AI use, in the spirit of the CRediT taxonomy~\citep{brand2015credit}, which lists each author's contribution through a fixed set of roles. It will cover the ways AI enters a project, from coding assistance and brainstorming to fully autonomous execution, so that researchers can state their use in a short, comparable form. Once published, the checklist will be added to this section.
+
 \bibliographystyle{plainnat}
 \bibliography{refs}
 
@@ -295,7 +302,7 @@ To reimplement it for another additive ensemble of the form of Equation~\eqref{e
 \section{Environment and reproduction}
 \label{app:env}
 
-Python \nVerPython, ngboost \nVerNgboost, scikit-learn \nVerSklearn, numpy \nVerNumpy; one OpenMP thread per process; shared \nCores-core host, load average \nLoadMin--\nLoadMax; tuned runs took \nWallTuned{} s wall time. Grid: learning rate \nGridLR, \nGridRounds{} rounds, \nGridRepsOne{} one-row repetitions per point. Tuned picks: concrete depth \nConcretePickMaxDepth, leaf \nConcretePickMinSamplesLeaf, minibatch \nConcretePickMinibatchFrac, rate \nConcretePickLearningRate, \nConcretePickNEstimators{} rounds; yacht \nYachtPickMaxDepth, \nYachtPickMinSamplesLeaf, \nYachtPickMinibatchFrac, \nYachtPickLearningRate, \nYachtPickNEstimators; credit-g \nCreditGPickMaxDepth, \nCreditGPickMinSamplesLeaf, \nCreditGPickMinibatchFrac, \nCreditGPickLearningRate, \nCreditGPickNEstimators. Held-out NLL of the tuned models: concrete \nConcreteTunedNLL, yacht \nYachtTunedNLL, credit-g \nCreditGTunedNLL{} nats. Code: repository \texttt{ngbfast}, commit \texttt{\nCommit}; upstream patch \texttt{patches/ngboost-check-input-once.patch} (\nPatchLines{} diff lines with tests) against ngboost master \texttt{\nPatchBase}; it passes \texttt{check\_input=False} to the trees after one check and keeps the rounds, so staged prediction and \texttt{partial\_fit} are unchanged; its timings, separate from ngbfast's, are in \texttt{patches/ngboost-check-input-once.timings.json}. Results: \texttt{python -m bench.summarize} after the per-data-set runs listed in \texttt{bench/results/SCOPE.md}; every number in this paper is a macro written by \texttt{paper/results/make\_numbers.py} from \texttt{bench/results/}.
+Python \nVerPython, ngboost \nVerNgboost, scikit-learn \nVerSklearn, numpy \nVerNumpy; one OpenMP thread per process; shared \nCores-core host, load average \nLoadMin--\nLoadMax; tuned runs took \nWallTuned{} s wall time. Grid: learning rate \nGridLR, \nGridRounds{} rounds, \nGridRepsOne{} one-row repetitions per point. Tuned picks: concrete depth \nConcretePickMaxDepth, leaf \nConcretePickMinSamplesLeaf, minibatch \nConcretePickMinibatchFrac, rate \nConcretePickLearningRate, \nConcretePickNEstimators{} rounds; yacht \nYachtPickMaxDepth, \nYachtPickMinSamplesLeaf, \nYachtPickMinibatchFrac, \nYachtPickLearningRate, \nYachtPickNEstimators; credit-g \nCreditGPickMaxDepth, \nCreditGPickMinSamplesLeaf, \nCreditGPickMinibatchFrac, \nCreditGPickLearningRate, \nCreditGPickNEstimators. Held-out NLL of the tuned models: concrete \nConcreteTunedNLL, yacht \nYachtTunedNLL, credit-g \nCreditGTunedNLL{} nats. Code: repository \texttt{ngbfast}, commit \texttt{\nCommit}; upstream patch \texttt{patches/ngboost-check-input-once.patch} (\nPatchLines{} diff lines with tests) against ngboost master \texttt{\nPatchBase}; it passes \texttt{check\_input=False} to the trees after one check and keeps the rounds, so staged prediction and \texttt{partial\_fit} are unchanged; its timings, separate from ngbfast's, are in \texttt{patches/ngboost-check-input-once.timings.json}. Results: \texttt{python -m bench.summarize} after the per-data-set runs listed in \texttt{bench/results/SCOPE.md}; every number in this note is a macro written by \texttt{paper/results/make\_numbers.py} from \texttt{bench/results/}.
 
 Figure~\ref{fig:latency} gives the absolute one-row latency per arm.
 

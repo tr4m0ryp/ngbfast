@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://x.com/tr4m0ryp"><img alt="Follow on X" src="https://img.shields.io/badge/X-@tr4m0ryp-000000?logo=x&logoColor=white"></a>
-  <a href="paper/ngbfast.pdf"><img alt="Paper PDF" src="https://img.shields.io/badge/Paper-PDF-b31b1b?logo=adobeacrobatreader&logoColor=white"></a>
+  <a href="paper/ngbfast.pdf"><img alt="Technical note" src="https://img.shields.io/badge/Technical-note-b31b1b?logo=adobeacrobatreader&logoColor=white"></a>
 </p>
 
 **ngbfast makes one-row NGBoost prediction 3.5x to 3.7x faster on tuned models with the exact same
@@ -66,7 +66,7 @@ however much it was trained. A hyperparameter search can land there on data with
 nothing in the fit complains. ngbfast turns prediction into one broadcast (960x to 10,000x faster on
 our grid) and, more usefully, raises a warning at fit time that names the bound that was violated.
 
-**The guarantee.** The paper proves that the folded path returns the same float64 bits as NGBoost's
+**The guarantee.** The technical note proves that the folded path returns the same float64 bits as NGBoost's
 own loop on every row NGBoost accepts, and rejects exactly the rows NGBoost rejects. The benchmark
 checks it on every test row of every fitted model.
 
@@ -131,7 +131,7 @@ m < \max(\text{min\_samples\_split},\ 2L),
 
 with $`L`$ the minimum leaf size, then every learner is a one-node tree and $`\theta(x) = \text{start}`$
 for every $`x`$. ngbfast turns this into a fit-time `NGBoostDegenerateWarning`. Proofs are in the
-[paper](paper/ngbfast.pdf), Appendix A.
+[technical note](paper/ngbfast.pdf), Appendix A.
 
 ## Results
 
@@ -198,7 +198,7 @@ come from follow-up settings added after the tuned models showed no constant lea
   tuned and default fits) on these small sets; on the tuned models it pays for itself after 8 to 22
   one-row calls.
 - **Shared host** (load 7 to 20): interleaving protects the ratios, not the absolute milliseconds.
-  The 3-seed SE differs from the two-level block-bootstrap SE in the paper either way (concrete 0.005
+  The 3-seed SE differs from the two-level block-bootstrap SE in the note either way (concrete 0.005
   vs 0.013, yacht 0.017 vs 0.015); both are reported there.
 - **Linear learners with zero coefficients** fold exactly only for finite inputs; opt-in, not benchmarked.
 
@@ -246,7 +246,7 @@ python -m bench.variants.one_se
 python -m bench.summarize                 # writes bench/results/summary.json
 
 cd paper
-python results/make_numbers.py --raw ../../_data/ngbfast_raw   # every number in the paper
+python results/make_numbers.py --raw ../../_data/ngbfast_raw   # every number in the note
 python figures/make.py --raw ../../_data/ngbfast_raw
 pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
 ```
@@ -257,12 +257,14 @@ The full benchmark took 1.9 h on a shared 8-core host with `OMP_NUM_THREADS=1`.
 ## Cite
 
 ```bibtex
-@misc{ouallaf2026ngbfast,
-  title  = {Bit-identical, faster {NGBoost} prediction, and a warning when every tree is constant},
-  author = {Ouallaf, Moussa},
-  year   = {2026},
-  howpublished = {\url{https://github.com/tr4m0ryp/ngbfast}},
-  note   = {Paper: paper/ngbfast.pdf}
+@techreport{ouallaf2026ngbfast,
+  title       = {Bit-identical, faster {NGBoost} prediction, and a warning when every tree is constant},
+  author      = {Ouallaf, Moussa},
+  institution = {Husimi.ai},
+  type        = {Technical note},
+  year        = {2026},
+  note        = {Preprint, not peer-reviewed},
+  url         = {https://github.com/tr4m0ryp/ngbfast/blob/main/paper/ngbfast.pdf}
 }
 ```
 
