@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use ngbfast, please cite the paper in paper/ngbfast.pdf."
+title: "ngbfast"
+version: 0.1.0
+date-released: 2026-11-04
+license: Apache-2.0
+repository-code: "https://github.com/tr4m0ryp/ngbfast"
+authors:
+  - family-names: Ouallaf
+    given-names: Moussa
+    affiliation: Husimi.ai
+    email: moussa@husimi.ai
+preferred-citation:
+  type: article
+  title: "Bit-identical, faster NGBoost prediction, and a warning when every tree is constant"
+  authors:
+    - family-names: Ouallaf
+      given-names: Moussa
+      affiliation: Husimi.ai
+      email: moussa@husimi.ai
+  year: 2026
+  url: "https://github.com/tr4m0ryp/ngbfast/blob/main/paper/ngbfast.pdf"
